@@ -25,7 +25,7 @@ int main()
     size_t sample_points = 100;
 
     // Highest index of l we're going to calculate
-    size_t lmax = 2;
+    size_t lmax = 5;
 
     // Add a bit of an overshoot or else the surface won't be closed in gnuplot
     init_domain_vector(theta, 0, M_PI + .1, sample_points);
@@ -54,18 +54,19 @@ int main()
         }
     }
 
-    const double sphere_r = 5;
+    const double sphere_r = 3;
+    const double range = 5;
     std::vector<std::vector<double>> scales(lmax+1, std::vector<double>(lmax+1, 0.0));
-    scales[2][2] = 3;
+    scales[5][3] = 3;
 
     FILE *pipe = popen("gnuplot -persist", "w");
     fprintf(pipe, "set mapping spherical\n");
     fprintf(pipe, "set term qt noraise\n");
     fprintf(pipe, "set pm3d depthorder\n");
     fprintf(pipe, "set cbrange [-1:1]\n");
-    fprintf(pipe, "set xrange [-8:8]\n");
-    fprintf(pipe, "set yrange [-8:8]\n");
-    fprintf(pipe, "set zrange [-8:8]\n");
+    fprintf(pipe, "set xrange [%.3f:%.3f]\n", -range, range);
+    fprintf(pipe, "set yrange [%.3f:%.3f]\n", -range, range);
+    fprintf(pipe, "set zrange [%.3f:%.3f]\n", -range, range);
 
     double t = 0;
     while (true) {
