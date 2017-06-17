@@ -57,6 +57,12 @@ int main()
     std::vector<std::vector<double>> scales(lmax+1, std::vector<double>(lmax+1, 0.0));
     scales[2][2] = 1;
 
+    FILE *pipe = popen("gnuplot -persist", "w");
+    fprintf(pipe, "set mapping spherical\n");
+    fprintf(pipe, "set term qt noraise\n");
+    fprintf(pipe, "set pm3d depthorder\n");
+    fprintf(pipe, "$data << EOD\n");
+
     const double sphere_r = 5;
     // Calculate the actual value for the current time slice
     for ( size_t idx_th = 0; idx_th < sample_points; ++idx_th )
@@ -70,13 +76,13 @@ int main()
                     size_t idx_th_res = gsl_sf_legendre_array_index(l, m);
                     cur_val += scales[l][m] * phi_result[idx_ph][m] * theta_result[idx_th][idx_th_res];
                 }
-            printf("%.3f %.3f %.3f %.3f\n", theta[idx_th], phi[idx_ph], sphere_r + cur_val, cur_val);
+            fprintf(pipe, "%.3f %.3f %.3f %.3f\n", theta[idx_th], phi[idx_ph], sphere_r + cur_val, cur_val);
         }
-        printf("\n");
+        fprintf(pipe, "\n");
     }
 
-    // set mapping spherical
-    // set term qt noraise
-    // splot 'data' u 1:2:(radius+$3):3 with pm3d
-    // set cbrange[-1:1]
+    fprintf(pipe, "EOD\n");
+    fprintf(pipe, "splot $data w pm3d\n");
+
+    fclose(pipe);
 }
