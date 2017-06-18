@@ -57,8 +57,17 @@ int main()
     const double sphere_r = 3;
     const double range = 5;
     std::vector<std::vector<double>> scales(lmax+1, std::vector<double>(lmax+1, 0.0));
-    scales[5][3] = 3;
+    std::vector<std::array<double, 3>> non_zero_scales = {
+	// l, m, scale_factor
+	{3, 5, .5},
+	{5, 5, 1}
+    };
 
+    for ( auto scale : non_zero_scales )
+    {
+	scales[scale[0]][scale[1]] = scale[2];
+    }
+    
     FILE *pipe = popen("gnuplot -persist", "w");
     fprintf(pipe, "set mapping spherical\n");
     fprintf(pipe, "set term qt noraise\n");
