@@ -14,7 +14,7 @@ int interactive_prompt()
 
 	if ( n_results != 4 )
 	{
-	    printf("That's not a valid command!");
+	    printf("That's not a valid command!\n");
 	    free(line);
 	    continue;
 	}

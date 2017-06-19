@@ -57,21 +57,63 @@ int gnuplot_task()
 	sph_harm::scales[scale[0]][scale[1]] = scale[2];
     }
     
-    FILE *pipe = popen("gnuplot -persist 2>&1 > /dev/null", "w");
-    // TODO: Change the pgid of the above process so that it doesn't
-    // get SIGINT when Ctrl-C is pressed
+    // FILE *pipe = popen("gnuplot -persist 2>&1 > /dev/null", "w");
+    // TODO: Look into blocking SIGINT as I'm forking and whatnot
+    int ptc_pipe[2];
+    int ctp_stdout_pipe[2];
+    int ctp_stderr_pipe[2];
+    if ( pipe(ptc_pipe) != 0 ||
+	 pipe(ctp_stdout_pipe) != 0 ||
+	 pipe(ctp_stderr_pipe) != 0 )
+    {
+	printf("FATAL error: couldn't create pipes to gnuplot!\n");
+	exit(1);
+    }
 
-    fprintf(pipe, "set mapping spherical\n");
-    fprintf(pipe, "set term qt noraise\n");
-    fprintf(pipe, "set pm3d depthorder\n");
-    fprintf(pipe, "set cbrange [-1:1]\n");
-    fprintf(pipe, "set xrange [%.3f:%.3f]\n", -range, range);
-    fprintf(pipe, "set yrange [%.3f:%.3f]\n", -range, range);
-    fprintf(pipe, "set zrange [%.3f:%.3f]\n", -range, range);
+    pid_t gnuplot_pid = fork();
+
+    // If this is the child process...
+    if ( gnuplot_pid == 0 )
+    {
+	// Close write-end of ptc_pipe and read ends of stdout and
+	// stderr pipes
+	close(ptc_pipe[1]);
+	close(ctp_stdout_pipe[0]);
+	close(ctp_stderr_pipe[0]);
+
+	dup2(ptc_pipe[0], STDIN_FILENO);
+	dup2(ctp_stdout_pipe[1], STDOUT_FILENO);
+	dup2(ctp_stderr_pipe[1], STDERR_FILENO);
+
+	if ( setpgid(0, 0) != 0 )
+	{
+	    printf("Error: unable to set pgid of gnuplot child process!\n");
+	    exit(1);
+	}
+	execl("/usr/sbin/gnuplot", "gnuplot", "-persist", (char *) NULL);
+    }
+
+    // Close read-end of ptc_pipe and write ends of stdout and stderr
+    // pipes
+    close(ptc_pipe[0]);
+    close(ctp_stdout_pipe[1]);
+    close(ctp_stderr_pipe[1]);
+    if ( setpgid(gnuplot_pid, gnuplot_pid) != 0 )
+    {
+	printf("Error: unable to set pgid of the gnuplot parent process!\n");
+    }
+
+    dprintf(ptc_pipe[1], "set mapping spherical\n");
+    dprintf(ptc_pipe[1], "set term qt noraise\n");
+    dprintf(ptc_pipe[1], "set pm3d depthorder\n");
+    dprintf(ptc_pipe[1], "set cbrange [-1:1]\n");
+    dprintf(ptc_pipe[1], "set xrange [%.3f:%.3f]\n", -range, range);
+    dprintf(ptc_pipe[1], "set yrange [%.3f:%.3f]\n", -range, range);
+    dprintf(ptc_pipe[1], "set zrange [%.3f:%.3f]\n", -range, range);
 
     double t = 0;
     while (true) {
-        fprintf(pipe, "$data << EOD\n");
+        dprintf(ptc_pipe[1], "$data << EOD\n");
 
 	std::unique_lock<std::mutex> guard(sph_harm::scales_mutex);
 	auto local_scales = sph_harm::scales;
@@ -86,16 +128,14 @@ int gnuplot_task()
                         size_t idx_th_res = gsl_sf_legendre_array_index(l, m);
                         cur_val += cos(4*t) * local_scales[l][m] * phi_result[idx_ph][m] * theta_result[idx_th][idx_th_res];
                     }
-                fprintf(pipe, "%.3f %.3f %.3f %.3f\n", theta[idx_th], phi[idx_ph], sphere_r + cur_val, cur_val);
+                dprintf(ptc_pipe[1], "%.3f %.3f %.3f %.3f\n", theta[idx_th], phi[idx_ph], sphere_r + cur_val, cur_val);
             }
-            fprintf(pipe, "\n");
+            dprintf(ptc_pipe[1], "\n");
 	} 
 
-        fprintf(pipe, "EOD\n");
-        fprintf(pipe, "splot $data w pm3d\n");
+        dprintf(ptc_pipe[1], "EOD\n");
+        dprintf(ptc_pipe[1], "splot $data w pm3d\n");
 
         t += .1;
     } 
-
-    pclose(pipe);
 }
