@@ -1,0 +1,74 @@
+#+TITLE: Vibrations on a spherical membrane using GNU Scientific Library and gnuplot
+#+HTML_MATHJAX: path:"https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"
+
+* Introduction
+I've always been fascinated by the idea that there are a set of normal
+vibrational modes orthogonal to each other, and that any arbitrary
+vibration of some object can be written as a linear combination of
+those modes. It's very akin, in my mind, to writing a time-domain
+signal alternatively as a frequency domain signal in that writing and
+manipulating the signal in a different domain can lead to some very profound insights. 
+
+Not to mention that the patterns are very pretty :) 
+
+I decided that I wanted to explore the patterns made by combining
+these different vibrational modes in an interactive way. While I
+figure that Mathematica very likely has the tools needed to build this
+sort of thing, I thought this might be a good way to flex some of my
+other programming skills. As such, I decided to code it up in C/C++
+using some very helpful libraries: 
+
+- The Gnu Scientific Library (GSL) for calculating the values of the
+  spherical harmonics along the surface
+- =gnuplot= for plotting the surface
+  
+
+* Brief primer on spherical harmonics
+Spherical harmonics are special functions which can arise in solving
+differential equations in spherical coordinates. These functions form
+a set of orthogonal functions on the sphere, much like Hermite
+polynomials or simple sine waves might form a set of orthogonal
+functions for their own spaces. 
+
+\[Y_\ell^m\,(\theta, \varphi) = e ^{i m \varphi} P_\ell\,(\cos{\theta})\]
+
+* The code proper
+Note that you can find a linke to this [[www.google.com][blah]]
+
+In order to make this program interactive, I included a very simple
+interactive prompt for manipulating the amplitudes of each vibrational
+mode.
+#+BEGIN_SRC c++
+int interactive_prompt()
+{
+    while (true)
+    {
+	char* line = readline( "sph-harmonics> ");
+
+	char command[100];
+	size_t l, m;
+	double scale;
+
+	int n_results = sscanf(line, "%s %d %d %lf", command, &l, &m, &scale);
+
+	if ( n_results != 4 )
+	{
+	    printf("That's not a valid command!\n");
+	    free(line);
+	    continue;
+	}
+
+	std::unique_lock<std::mutex> guard(sph_harm::scales_mutex);
+	printf("Settings harmonic with l=%d, m=%d to %f\n", l, m, scale);
+	sph_harm::scales[l][m] = scale;
+	free(line);
+    }
+    
+    return 0;
+}
+#+END_SRC
+
+* Resources
+https://stackoverflow.com/questions/6803395/child-process-receives-parents-sigint
+
+http://www.dreamincode.net/forums/topic/242335-unix-pipes-and-bidirectional-communication/
